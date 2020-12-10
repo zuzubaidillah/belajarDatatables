@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Data rendering</title>
+    <!-- css datatables default -->
+    <!-- <link rel="stylesheet" href="https://cdn.datatables.net/1.10.22/css/jquery.dataTables.min.css"> -->
+    <!-- css datatables bostrap -->
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.10.22/css/jquery.dataTables.min.css">
+    <link rel="stylesheet" href="https://github.com/downloads/lafeber/world-flags-sprite/flags32.css">
+    <style>
+        .f32 .flag {
+            vertical-align: middle;
+            margin: -8px 0;
+        }
+
+        progress {
+            width: 100%;
+        }
+
+        td.highlight {
+            font-weight: bold;
+            color: blue;
+        }
+
+        th {
+            white-space: nowrap;
+        }
+    </style>
+</head>
+
+<body>
+    <table id="example" class="display nowrap" data-page-length="25" style="width:100%">
+        <thead>
+            <tr>
+                <th></th>
+                <th>Name</th>
+                <th>Position</th>
+                <th>Office</th>
+                <th>Progress</th>
+                <th data-orderable="false">Start date</th>
+                <th data-search="Salary">Salary</th>
+            </tr>
+        </thead>
+        <tfoot>
+            <tr>
+                <th></th>
+                <th>Name</th>
+                <th>Position</th>
+                <th>Office</th>
+                <th>Progress</th>
+                <th>Start date</th>
+                <th>Salary</th>
+            </tr>
+        </tfoot>
+    </table>
+
+    <script src="https://code.jquery.com/jquery-3.5.1.js"></script>
+    <script src="https://cdn.datatables.net/1.10.22/js/jquery.dataTables.min.js"></script>
+
+    <script>
+        $(document).ready(function () {
+            var table = $('#example').DataTable({
+                ajax: '/json/dataRendering.json',
+                lengthMenu: [[10, 25, 50, -1], [10, 25, 50, "All"]],
+                language: {
+                    url: '/json/language.json'
+                },
+                "createdRow": function (row, data, index) {
+                    if (data.salary.replace(/[\$,]/g, '') * 1 > 150000) {
+                        $('td', row).eq(5).addClass('highlight');
+                    }
+                },
+                columns: [
+                    {
+                        data: 'name'
+                    },
+                    {
+                        data: 'name'
+                    },
+                    {
+                        data: 'position'
+                    },
+                    {
+                        className: 'f32', // used by world-flags-sprite library
+                        data: 'office',
+                        render: function (data, type, row) {
+                            // console.log(type);
+                            if (type === 'display') {
+                                var country = '';
+
+                                switch (data) {
+                                    case 'Argentina':
+                                        country = 'ar';
+                                        break;
+                                    case 'Edinburgh':
+                                        country = '_Scotland';
+                                        break;
+                                    case 'London':
+                                        country = '_England';
+                                        break;
+                                    case 'New York':
+                                    case 'San Francisco':
+                                        country = 'us';
+                                        break;
+                                    case 'Sydney':
+                                        country = 'au';
+                                        break;
+                                    case 'Tokyo':
+                                        country = 'jp';
+                                        break;
+                                }
+
+                                return '<span class="flag ' + country + '"></span> ' + data;
+                            }
+
+                            return data;
+                        }
+                    },
+                    {
+                        data: 'extn',
+                        render: function (data, type, row, meta) {
+                            return type === 'display' ?
+                                '<progress value="' + data + '" max="9999"></progress>' :
+                                data;
+                        }
+                    },
+                    {
+                        data: "start_date"
+                    },
+                    {
+                        data: "salary",
+                        render: $.fn.dataTable.render.number(',', '.', 2, '$')
+                    }
+                ],
+                "footerCallback": function (row, data, start, end, display) {
+                    var api = this.api(), data;
+                    console.log(api);
+
+                    // Remove the formatting to get integer data for summation
+                    var intVal = function (i) {
+                        return typeof i === 'string' ?
+                            i.replace(/[\$,]/g, '') * 1 :
+                            typeof i === 'number' ?
+                                i : 0;
+                    };
+
+                    // Total over all pages
+                    total = api
+                        .column(4)
+                        .data()
+                        .reduce(function (a, b) {
+                            return intVal(a) + intVal(b);
+                        }, 0);
+
+                    // Total over this page
+                    pageTotal = api
+                        .column(4, { page: 'current' })
+                        .data()
+                        .reduce(function (a, b) {
+                            return intVal(a) + intVal(b);
+                        }, 0);
+
+                    // Update footer
+                    $(api.column(4).footer()).html(
+                        '$' + pageTotal + ' ( $' + total + ' total)'
+                    );
+                }
+            });
+
+            table.on('order.dt search.dt', function () {
+                table.column(0, { search: 'applied', order: 'applied' }).nodes().each(function (cell, i) {
+                    cell.innerHTML = i + 1;
+                });
+            }).draw();
+
+            $('#example tbody').on('click', 'tr', function () {
+                var data = table.row(this).data();
+                console.log(data);
+                alert('You clicked on ' + data.name + '\'s row');
+            });
+        });
+    </script>
+</body>
+
+</html>
