@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>crudDatatables</title>
+    <!-- css datatables bostrap -->
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.10.22/css/dataTables.bootstrap.min.css">
+    <!-- editorDatatables -->
+    <link rel="stylesheet" href="https://cdn.datatables.net/buttons/1.6.5/css/buttons.dataTables.min.css">
+    <link rel="stylesheet" href="https://cdn.datatables.net/select/1.3.1/css/select.dataTables.min.css">
+    <link rel="stylesheet" href="https://editor.datatables.net/extensions/Editor/css/editor.dataTables.min.css">
+    <style>
+        button.inputButton {
+            float: left;
+            text-align: center;
+            display: block;
+            cursor: pointer;
+            margin: 0 20px 10px 0;
+            padding: 6px 0;
+            background: #F8F8F8;
+            background: -webkit-gradient(linear, center bottom, center top, from(#CCC), to(white));
+            background: -moz-linear-gradient(top, white, #CCC);
+            background: linear-gradient(to bottom, white, #CCC);
+            text-shadow: 0 1px 0 white;
+            border: 1px solid #999;
+            border-radius: 3px;
+            -moz-border-radius: 3px;
+            -webkit-border-radius: 3px;
+            box-shadow: 0px 0px 2px #999;
+            -moz-box-shadow: 0px 0px 2px #999;
+            -webkit-box-shadow: 0px 0px 2px #999;
+            width: 80px;
+        }
+
+        button.inputButton.selected {
+            font-weight: normal;
+            background: #02475A;
+            background: -webkit-gradient(linear, center bottom, center top, from(#777), to(#333));
+            background: -moz-linear-gradient(top, #333, #777);
+            background: linear-gradient(to bottom, #333, #777);
+            box-shadow: inset 0px 0px 2px #222;
+            -moz-box-shadow: inset 0px 0px 2px #222;
+            -webkit-box-shadow: inset 0px 0px 2px #222;
+            color: white;
+            text-shadow: none;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-md-12">
+                <table id="example" class="display" style="width:100%">
+                    <thead>
+                        <tr>
+                            <th>Priority</th>
+                            <th>Item</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.5.1.js"></script>
+    <script src="https://cdn.datatables.net/1.10.22/js/jquery.dataTables.min.js"></script>
+    <!-- editorDatatables -->
+    <script src="https://cdn.datatables.net/buttons/1.6.5/js/dataTables.buttons.min.js"></script>
+    <script src="https://cdn.datatables.net/select/1.3.1/js/dataTables.select.min.js"></script>
+    <script src="https://editor.datatables.net/extensions/Editor/js/dataTables.editor.min.js"></script>
+
+    <script>
+        // Todo field type plug-in code
+        (function ($, DataTable) {
+
+            if (!DataTable.ext.editorFields) {
+                DataTable.ext.editorFields = {};
+            }
+
+            var Editor = DataTable.Editor;
+            var _fieldTypes = DataTable.ext.editorFields;
+
+            _fieldTypes.todo = {
+                create: function (conf) {
+                    var that = this;
+
+                    conf._enabled = true;
+
+                    // Create the elements to use for the input
+                    conf._input = $(
+                        '<div id="' + Editor.safeId(conf.id) + '">' +
+                        '<button type="button" class="inputButton" value="0">To do</button>' +
+                        '<button type="button" class="inputButton" value="1">Done</button>' +
+                        '</div>');
+
+                    // Use the fact that we are called in the scope of the Editor instance to call
+                    // the API method for setting the value when needed
+                    $('button.inputButton', conf._input).click(function () {
+                        if (conf._enabled) {
+                            that.set(conf.name, $(this).attr('value'));
+                        }
+
+                        return false;
+                    });
+
+                    return conf._input;
+                },
+
+                get: function (conf) {
+                    return $('button.selected', conf._input).attr('value');
+                },
+
+                set: function (conf, val) {
+                    $('button.selected', conf._input).removeClass('selected');
+                    $('button.inputButton[value=' + val + ']', conf._input).addClass('selected');
+                },
+
+                enable: function (conf) {
+                    conf._enabled = true;
+                    $(conf._input).removeClass('disabled');
+                },
+
+                disable: function (conf) {
+                    conf._enabled = false;
+                    $(conf._input).addClass('disabled');
+                }
+            };
+
+        })(jQuery, jQuery.fn.dataTable);
+
+
+        var editor; // use a global for the submit and return data rendering in the examples
+
+        $(document).ready(function () {
+            editor = new $.fn.dataTable.Editor({
+                ajax: "/php/todo.php",
+                table: "#example",
+                fields: [{
+                    label: "Item:",
+                    name: "item"
+                }, {
+                    label: "Status:",
+                    name: "done",
+                    type: "todo", // Using the custom field type
+                    def: 0
+                }, {
+                    label: "Priority:",
+                    name: "priority",
+                    type: "select",
+                    options: [
+                        { label: "1 (highest)", value: "1" },
+                        { label: "2", value: "2" },
+                        { label: "3", value: "3" },
+                        { label: "4", value: "4" },
+                        { label: "5 (lowest)", value: "5" }
+                    ]
+                }
+                ]
+            });
+
+            $('#example').DataTable({
+                dom: "Bfrtip",
+                ajax: "/editor.json",
+                columns: [
+                    { data: "priority", className: "center" },
+                    { data: "item" },
+                    {
+                        className: "center",
+                        data: "done",
+                        render: function (data, type, row) {
+                            if (type === 'display' || type === 'filter') {
+                                // Filtering and display get the rendered string
+                                return data == 0 ? "To do" : "Done";
+                            }
+                            // Otherwise just give the original data
+                            return data;
+                        }
+                    }
+                ],
+                select: true,
+                buttons: [
+                    { extend: "create", editor: editor },
+                    { extend: "edit", editor: editor },
+                    { extend: "remove", editor: editor }
+                ]
+            });
+        });
+    </script>
+</body>
+
+</html>
